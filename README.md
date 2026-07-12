@@ -1265,4 +1265,5 @@ http://HOST_MACHINE_IP
 
 Gosei is ready to use.
 #   G o s e i  
+ #   G o s e i  
  
