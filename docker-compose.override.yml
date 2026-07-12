@@ -1,0 +1,12 @@
+services:
+  nginx:
+    ports:
+      - "80:80"
+
+  frontend:
+    environment:
+      - VITE_API_URL=/api
+    command: npm run dev -- --host 0.0.0.0
+
+  gosei-api:
+    command: python manage.py runserver 0.0.0.0:8000

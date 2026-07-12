@@ -1,0 +1,135 @@
+services:
+
+  # ==================================================
+  # NGINX
+  # ==================================================
+
+  nginx:
+    image: nginx:alpine
+
+    container_name: gosei-nginx
+
+    restart: unless-stopped
+
+    depends_on:
+      - frontend
+      - gosei-api
+
+    ports:
+      - "80:80"
+
+    volumes:
+      - ./nginx/conf.d/local.conf:/etc/nginx/conf.d/default.conf:ro
+
+
+  # ==================================================
+  # FRONTEND — VUE / VITE
+  # ==================================================
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    container_name: gosei-frontend
+
+    restart: unless-stopped
+
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+
+    environment:
+      VITE_API_URL: /api
+
+      CHOKIDAR_USEPOLLING: "true"
+
+    expose:
+      - "5173"
+
+    command:
+      - npm
+      - run
+      - dev
+      - --
+      - --host
+      - 0.0.0.0
+
+
+  # ==================================================
+  # DJANGO API
+  # ==================================================
+
+  gosei-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: gosei-api
+
+    restart: unless-stopped
+
+    volumes:
+      - ./backend:/config
+
+    env_file:
+      - .env
+
+    expose:
+      - "8000"
+
+    depends_on:
+      gosei-db:
+        condition: service_healthy
+
+    command:
+      - python
+      - manage.py
+      - runserver
+      - 0.0.0.0:8000
+
+
+  # ==================================================
+  # POSTGRES DATABASE
+  # ==================================================
+
+  gosei-db:
+    image: postgres:16-alpine
+
+    container_name: gosei-db
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - gosei_postgres_data:/var/lib/postgresql/data
+
+    expose:
+      - "5432"
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+        ]
+
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+
+# ==================================================
+# PERSISTENT VOLUMES
+# ==================================================
+
+volumes:
+  gosei_postgres_data:
